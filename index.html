@@ -9,9 +9,29 @@
     input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
     .fade-in { animation: fadeIn 0.25s ease-in; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .shake { animation: shake 0.35s ease; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen">
+
+  <!-- 密碼鎖 -->
+  <div id="lockScreen" class="fixed inset-0 bg-slate-800/90 backdrop-blur-sm flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-xl p-8 w-80 text-center">
+      <div class="text-4xl mb-3">🔒</div>
+      <h2 class="text-lg font-bold text-slate-800 mb-1">雄獅旅行社 RC 專用</h2>
+      <p class="text-slate-500 text-sm mb-5">請輸入存取密碼</p>
+      <input type="password" id="pwInput" placeholder="密碼"
+        class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+        onkeydown="if(event.key==='Enter')checkPassword()">
+      <p id="pwError" class="text-red-500 text-sm mb-3 hidden">密碼錯誤，請再試一次</p>
+      <button onclick="checkPassword()"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl transition-all">
+        進入
+      </button>
+    </div>
+  </div>
+
   <div class="max-w-lg mx-auto px-4 py-8">
 
     <!-- Header -->
@@ -375,6 +395,30 @@
           <div class="text-xs font-medium text-slate-500 mb-3">可查詢去程班號（點選自動填入）</div>
           ${items}
         </div>`;
+    }
+
+    // ── 密碼鎖 ────────────────────────────────────────────────
+    const PW = '123456';
+
+    function checkPassword() {
+      const input = document.getElementById('pwInput').value;
+      if (input === PW) {
+        sessionStorage.setItem('rc_auth', '1');
+        document.getElementById('lockScreen').style.display = 'none';
+      } else {
+        const box = document.getElementById('pwInput');
+        const err = document.getElementById('pwError');
+        err.classList.remove('hidden');
+        box.value = '';
+        box.classList.add('shake');
+        box.addEventListener('animationend', () => box.classList.remove('shake'), { once: true });
+      }
+    }
+
+    if (sessionStorage.getItem('rc_auth') === '1') {
+      document.getElementById('lockScreen').style.display = 'none';
+    } else {
+      setTimeout(() => document.getElementById('pwInput').focus(), 100);
     }
 
     // 預設日期為今天
