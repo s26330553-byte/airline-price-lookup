@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>航司票價查詢</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+    .fade-in { animation: fadeIn 0.25s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <div class="max-w-md mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">✈ 航司票價查詢</h1>
+      <p class="text-slate-500 text-sm mt-1">雄獅旅行社 RC 專用 · 團體票含週末加價自動計算</p>
+    </div>
+
+    <!-- Search Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-4">
+      <div class="space-y-4">
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">航班代碼</label>
+          <input type="text" id="flightInput" placeholder="例：CI130、BR116" maxlength="10"
+            class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+            oninput="this.value=this.value.toUpperCase().replace(/\s/g,'')"
+            onkeydown="if(event.key==='Enter')handleSearch()">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">出發日期</label>
+            <input type="date" id="dateInput"
+              class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">行程天數</label>
+            <select id="tripDaysInput"
+              class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="4">4 天</option>
+              <option value="5" selected>5 天（預設）</option>
+              <option value="6">6 天</option>
+              <option value="7">7 天</option>
+              <option value="8">8 天</option>
+            </select>
+          </div>
+        </div>
+
+        <button onclick="handleSearch()"
+          class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold py-3 rounded-xl transition-all text-base shadow-sm">
+          查詢票價
+        </button>
+      </div>
+    </div>
+
+    <!-- Result Area -->
+    <div id="result"></div>
+
+    <!-- Available Flights Info -->
+    <div id="flightList" class="mt-4"></div>
+
+    <!-- Footer -->
+    <p class="text-center text-xs text-slate-400 mt-6" id="lastUpdated">資料載入中…</p>
+
+  </div>
+
+  <script>
+    let PRICES = null;
+
+    // ── 資料載入 ──────────────────────────────────────────────
+    async function loadPrices() {
+      try {
+        const res = await fetch('data/prices.json');
+        PRICES = await res.json();
+      } catch {
+        // 如果 fetch 失敗（本機 file:// 開啟），顯示提示
+        document.getElementById('result').innerHTML = renderWarning(
+          '請透過本機伺服器或 GitHub Pages 開啟此工具（直接雙擊 HTML 檔無法載入資料）。' +
+          '<br>建議：在 VS Code 安裝 Live Server 套件，或上傳到 GitHub Pages 後使用。'
+        );
+        return;
+      }
+      document.getElementById('lastUpdated').textContent =
+        `票價資料最後更新：${PRICES.lastUpdated}　·　僅供 RC 內部參考`;
+      renderFlightList();
+    }
+
+    // ── 查詢邏輯 ──────────────────────────────────────────────
+    function parseLocalDate(str) {
+      const [y, m, d] = str.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function findRoute(flight) {
+      const f = flight.toUpperCase().replace(/\s/g, '');
+      for (const route of PRICES.routes) {
+        if (route.outbound.includes(f) || route.inbound.includes(f)) return route;
+      }
+      return null;
+    }
+
+    function findPriceForDate(prices, dateStr) {
+      const d = parseLocalDate(dateStr);
+      for (const range of prices) {
+        const s = parseLocalDate(range.start);
+        const e = parseLocalDate(range.end);
+        if (d >= s && d <= e) return range.price;
+      }
+      return null;
+    }
+
+    function tripContainsBothWeekendDays(departureDateStr, tripDays) {
+      const start = parseLocalDate(departureDateStr);
+      let hasSat = false, hasSun = false;
+      for (let i = 0; i < tripDays; i++) {
+        const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i).getDay();
+        if (day === 6) hasSat = true;
+        if (day === 0) hasSun = true;
+      }
+      return hasSat && hasSun;
+    }
+
+    function checkSurchargeExemption(airline, destination, departureDateStr) {
+      const exemptions = airline.weekendExemptions[destination] || [];
+      const d = parseLocalDate(departureDateStr);
+      for (const ex of exemptions) {
+        if (d >= parseLocalDate(ex.start) && d <= parseLocalDate(ex.end)) {
+          return { exempt: true, name: ex.name };
+        }
+      }
+      return { exempt: false };
+    }
+
+    function queryPrice(flightInput, departureDateStr, tripDays) {
+      if (!PRICES) return { error: '資料尚未載入，請稍後再試' };
+
+      const route = findRoute(flightInput);
+      if (!route) return {
+        error: `找不到航班「${flightInput}」，請確認代碼是否正確（例：CI130）`
+      };
+
+      const airline = PRICES.airlines[route.airline];
+
+      // 收集所有 priceSet 中符合日期的票價
+      const candidates = [];
+      for (const ps of route.priceSets) {
+        const price = findPriceForDate(ps.prices, departureDateStr);
+        if (price !== null) candidates.push({ price, label: ps.label });
+      }
+
+      if (candidates.length === 0) return {
+        error: `${departureDateStr} 在此航班的票價表中無對應區間，請確認日期`
+      };
+
+      // 取最低價（促銷票重疊時自動取低）
+      candidates.sort((a, b) => a.price - b.price);
+      const { price: basePrice, label: priceLabel } = candidates[0];
+
+      // 週末加價計算
+      const hasWeekend = tripContainsBothWeekendDays(departureDateStr, tripDays);
+      let surcharge = 0, surchargeNote = '', surchargeDetail = '';
+
+      if (!hasWeekend) {
+        surchargeNote = '免收';
+        surchargeDetail = `行程 ${tripDays} 天未同時含週六及週日`;
+      } else {
+        const exemption = checkSurchargeExemption(airline, route.destination, departureDateStr);
+        if (exemption.exempt) {
+          surchargeNote = '免收（國定假日）';
+          surchargeDetail = `出發日在「${exemption.name}」免收週末加價期間`;
+        } else {
+          surcharge = airline.weekendSurcharge[route.destination] ?? airline.weekendSurcharge.default;
+          surchargeNote = `+ NT$ ${surcharge.toLocaleString()}`;
+          surchargeDetail = `行程含週六＋週日，${route.destination} 標準加價`;
+        }
+      }
+
+      // 計算回程日
+      const depDate = parseLocalDate(departureDateStr);
+      const retDate = new Date(depDate.getFullYear(), depDate.getMonth(), depDate.getDate() + tripDays - 1);
+      const retDateStr = `${retDate.getFullYear()}-${String(retDate.getMonth()+1).padStart(2,'0')}-${String(retDate.getDate()).padStart(2,'0')}`;
+
+      return {
+        ok: true, route, airline, flightInput: flightInput.toUpperCase().replace(/\s/g,''),
+        departureDateStr, retDateStr, tripDays,
+        basePrice, priceLabel,
+        surcharge, surchargeNote, surchargeDetail,
+        total: basePrice + surcharge,
+        candidateCount: candidates.length
+      };
+    }
+
+    // ── UI ────────────────────────────────────────────────────
+    const DAY_NAMES = ['日','一','二','三','四','五','六'];
+
+    function fmtDate(str) {
+      const d = parseLocalDate(str);
+      return `${d.getMonth()+1}/${d.getDate()}（${DAY_NAMES[d.getDay()]}）`;
+    }
+
+    function fmtPrice(n) {
+      return 'NT$ ' + n.toLocaleString();
+    }
+
+    function renderWarning(msg) {
+      return `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 text-sm leading-relaxed fade-in">⚠️ ${msg}</div>`;
+    }
+
+    function renderError(msg) {
+      return `<div class="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm fade-in">❌ ${msg}</div>`;
+    }
+
+    function handleSearch() {
+      const flight = document.getElementById('flightInput').value.trim();
+      const date = document.getElementById('dateInput').value;
+      const tripDays = parseInt(document.getElementById('tripDaysInput').value);
+      const el = document.getElementById('result');
+
+      if (!flight) { el.innerHTML = renderError('請輸入航班代碼'); return; }
+      if (!date)   { el.innerHTML = renderError('請選擇出發日期'); return; }
+
+      const r = queryPrice(flight, date, tripDays);
+
+      if (!r.ok) { el.innerHTML = renderError(r.error); return; }
+
+      const surchargeColor = r.surcharge > 0 ? 'text-orange-600' : 'text-slate-400';
+      const totalColor = r.surcharge > 0 ? 'text-orange-700' : 'text-green-700';
+      const surchargeTag = r.surcharge > 0
+        ? `<span class="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-medium">含週末加價</span>`
+        : `<span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">無週末加價</span>`;
+
+      el.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden fade-in">
+          <div class="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="text-xl font-bold font-mono tracking-wide">${r.flightInput}</div>
+                <div class="text-blue-100 text-sm mt-0.5">${r.route.label}</div>
+              </div>
+              <div class="text-right">
+                <div class="text-blue-200 text-xs">${r.airline.name}</div>
+                <div class="mt-1">${surchargeTag}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-6 py-5">
+            <div class="bg-slate-50 rounded-xl px-4 py-3 mb-5 text-sm text-slate-600 flex items-center justify-between">
+              <div>
+                <span class="font-medium">${fmtDate(r.departureDateStr)}</span>
+                <span class="text-slate-400 mx-2">→</span>
+                <span class="font-medium">${fmtDate(r.retDateStr)}</span>
+              </div>
+              <div class="text-slate-400 text-xs">${r.tripDays} 天</div>
+            </div>
+
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-slate-600">基本票價</span>
+                <span class="font-semibold text-slate-800 text-lg">${fmtPrice(r.basePrice)}</span>
+              </div>
+              <div class="text-xs text-slate-400 -mt-2 text-right">${r.priceLabel}</div>
+
+              <div class="flex justify-between items-baseline ${surchargeColor}">
+                <div>
+                  <div>週末加價</div>
+                  <div class="text-xs mt-0.5 text-slate-400">${r.surchargeDetail}</div>
+                </div>
+                <span class="font-medium text-base">${r.surchargeNote}</span>
+              </div>
+
+              <div class="border-t border-slate-200 pt-4 flex justify-between items-center">
+                <span class="font-bold text-slate-800">最終票價</span>
+                <span class="text-3xl font-bold ${totalColor}">${fmtPrice(r.total)}</span>
+              </div>
+              <p class="text-xs text-slate-400 text-right -mt-2">未含稅金及附加費用</p>
+            </div>
+
+            ${r.candidateCount > 1 ? `
+            <div class="mt-4 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700">
+              💡 此日期有 ${r.candidateCount} 筆票價資料（含促銷票），已自動取最低價 ${fmtPrice(r.basePrice)}
+            </div>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function renderFlightList() {
+      if (!PRICES || !PRICES.routes.length) return;
+      const items = PRICES.routes.map(r => {
+        const flights = [...r.outbound, ...r.inbound].join(' / ');
+        return `<span class="inline-block bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-mono text-slate-700 shadow-sm">${flights}</span>`;
+      }).join('');
+      document.getElementById('flightList').innerHTML = `
+        <div class="text-xs text-slate-400 mb-2 px-1">可查詢航班</div>
+        <div class="flex flex-wrap gap-2">${items}</div>`;
+    }
+
+    // 預設日期為今天
+    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+
+    loadPrices();
+  </script>
+</body>
+</html>
