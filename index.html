@@ -186,10 +186,9 @@
     // ── 找出票價對應的 slot index ─────────────────────────────
     function findSlotIndex(route, departureDateStr) {
       const d = parseLocalDate(departureDateStr);
-      if (route.p && route.drKey) {
+      if (route.drKey) {
         const dateRanges = PRICES.dateRanges[route.drKey];
         for (let i = 0; i < dateRanges.length; i++) {
-          if (route.p[i] === null || route.p[i] === undefined) continue;
           for (const [start, end] of dateRanges[i]) {
             if (d >= parseLocalDate(start) && d <= parseLocalDate(end)) return i;
           }
@@ -213,7 +212,25 @@
         const airline = PRICES.airlines[route.airline];
         const dest = route.dest || route.destination;
 
-        const basePrice = findPriceForRoute(route, departureDateStr);
+        // 從 p[] 取正常票價，再疊加促銷（含開票期檢查）
+        let basePrice = findPriceForRoute(route, departureDateStr);
+        let isPromo = false;
+        let sourceLabel = airline.defaultSource || airline.name;
+        if (route.promoSlots) {
+          const slotIdx = findSlotIndex(route, departureDateStr);
+          if (slotIdx !== null) {
+            const promo = route.promoSlots[slotIdx];
+            if (promo) {
+              const today = new Date(); today.setHours(0, 0, 0, 0);
+              const ticketingEnd = parseLocalDate(promo.ticketingEnd);
+              if (today <= ticketingEnd && promo.price != null) {
+                if (basePrice === null || promo.price < basePrice) basePrice = promo.price;
+                isPromo = true;
+                sourceLabel = promo.source;
+              }
+            }
+          }
+        }
         if (basePrice === null) continue;
 
         // 週末加價
@@ -242,17 +259,6 @@
         const retDateStr = `${retDate.getFullYear()}-${String(retDate.getMonth()+1).padStart(2,'0')}-${String(retDate.getDate()).padStart(2,'0')}`;
 
         const discount = airline.agentDiscount || 0;
-
-        // 促銷偵測
-        let isPromo = false;
-        let sourceLabel = airline.defaultSource || airline.name;
-        if (route.promoSlots) {
-          const slotIdx = findSlotIndex(route, departureDateStr);
-          if (slotIdx !== null && route.promoSlots[slotIdx]) {
-            isPromo = true;
-            sourceLabel = route.promoSlots[slotIdx];
-          }
-        }
 
         results.push({
           route, airline, dest,

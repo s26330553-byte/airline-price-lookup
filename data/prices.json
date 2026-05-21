@@ -312,8 +312,8 @@
      "p":[null,11000,10500,10500,8500,10500,9000,12000,14500,9500,13000,9000,11500,9000,12000,8500,12000,8500,8500]},
 
     {"id":"FUK-110_395","airline":"CI","dest":"FUK","out":["CI110"],"in":["CI395"],"label":"福岡 CI110去／CI395回（限至10/24）","drKey":"FUK_KMJ_KOJ",
-     "p":[8500,10500,10500,10500,8500,10500,9000,13500,14500,9500,13500,9500,14500,null,null,null,null,null,null],
-     "promoSlots":{"0":"TTE東北亞促銷第二版(KMJ CI394/395)","1":"TTE東北亞促銷第二版(KMJ CI394/395)","2":"TTE東北亞促銷第二版(KMJ CI394/395)","3":"TTE東北亞促銷第二版(KMJ CI394/395)","4":"TTE東北亞促銷第二版(KMJ CI394/395)","5":"TTE東北亞促銷第二版(KMJ CI394/395)","6":"TTE東北亞促銷第二版(KMJ CI394/395)"}},
+     "p":[null,11500,11500,11000,9500,11500,9500,13500,14500,9500,13500,9500,14500,null,null,null,null,null,null],
+     "promoSlots":{"0":{"price":8500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"1":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"2":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"3":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"4":{"price":8500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"5":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"6":{"price":9000,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"}}},
 
     {"id":"KMJ-194_195","airline":"CI","dest":"KMJ","out":["CI194"],"in":["CI195"],"label":"熊本 CI194去／CI195回","drKey":"FUK_KMJ_KOJ",
      "p":[null,12500,12000,12000,10000,12000,10000,14500,15500,10500,14500,10000,14500,11000,14000,9500,13500,9500,9000]},
@@ -325,8 +325,8 @@
      "p":[null,12000,11500,11500,9500,11000,9000,13000,15000,10000,13500,9500,12500,9500,12500,9000,13000,9000,9000]},
 
     {"id":"KMJ-394_395","airline":"CI","dest":"KMJ","out":["CI394"],"in":["CI395"],"label":"熊本 CI394去／CI395回（限至10/24）","drKey":"FUK_KMJ_KOJ",
-     "p":[10500,10500,10500,10500,8500,10500,9000,13500,14500,9500,13500,9500,14500,null,null,null,null,null,null],
-     "promoSlots":{"0":"TTE東北亞促銷第二版(KMJ CI394/395)","1":"TTE東北亞促銷第二版(KMJ CI394/395)","2":"TTE東北亞促銷第二版(KMJ CI394/395)","3":"TTE東北亞促銷第二版(KMJ CI394/395)","4":"TTE東北亞促銷第二版(KMJ CI394/395)","5":"TTE東北亞促銷第二版(KMJ CI394/395)","6":"TTE東北亞促銷第二版(KMJ CI394/395)"}},
+     "p":[null,11500,11500,11000,9500,11500,9500,13500,14500,9500,13500,9500,14500,null,null,null,null,null,null],
+     "promoSlots":{"0":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"1":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"2":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"3":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"4":{"price":8500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"5":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"6":{"price":9000,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"}}},
 
     {"id":"KMJ-394_117","airline":"CI","dest":"KMJ","out":["CI394"],"in":["CI117"],"label":"熊本 CI394去／CI117回（限至10/24）","drKey":"FUK_KMJ_KOJ",
      "p":[null,12000,12000,11500,10000,12000,10000,14000,15000,10000,14000,10000,15000,null,null,null,null,null,null]},
