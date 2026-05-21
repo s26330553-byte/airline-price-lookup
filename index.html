@@ -183,6 +183,21 @@
       return { exempt: false };
     }
 
+    // ── 找出票價對應的 slot index ─────────────────────────────
+    function findSlotIndex(route, departureDateStr) {
+      const d = parseLocalDate(departureDateStr);
+      if (route.p && route.drKey) {
+        const dateRanges = PRICES.dateRanges[route.drKey];
+        for (let i = 0; i < dateRanges.length; i++) {
+          if (route.p[i] === null || route.p[i] === undefined) continue;
+          for (const [start, end] of dateRanges[i]) {
+            if (d >= parseLocalDate(start) && d <= parseLocalDate(end)) return i;
+          }
+        }
+      }
+      return null;
+    }
+
     // ── 主查詢（回傳所有相符路線的結果） ─────────────────────────
     function queryPrices(flightInput, departureDateStr, tripDays) {
       if (!PRICES) return { error: '資料尚未載入，請稍後再試' };
@@ -228,12 +243,23 @@
 
         const discount = airline.agentDiscount || 0;
 
+        // 促銷偵測
+        let isPromo = false;
+        let sourceLabel = airline.defaultSource || airline.name;
+        if (route.promoSlots) {
+          const slotIdx = findSlotIndex(route, departureDateStr);
+          if (slotIdx !== null && route.promoSlots[slotIdx]) {
+            isPromo = true;
+            sourceLabel = route.promoSlots[slotIdx];
+          }
+        }
+
         results.push({
           route, airline, dest,
           flightInput: flightInput.toUpperCase().replace(/\s/g, ''),
           departureDateStr, retDateStr, tripDays,
           basePrice, surcharge, surchargeNote, surchargeDetail,
-          discount,
+          discount, isPromo, sourceLabel,
           total: basePrice + surcharge - discount
         });
       }
@@ -285,7 +311,10 @@
                 <div class="text-blue-100 text-sm mt-0.5 leading-snug">${r.route.label}</div>
               </div>
               <div class="text-right flex-shrink-0">
-                <div class="text-blue-200 text-xs">${r.airline.name}</div>
+                <div class="flex items-center justify-end gap-1.5">
+                  <div class="text-blue-200 text-xs">${r.airline.name}</div>
+                  ${r.isPromo ? `<span class="bg-orange-400 text-white text-xs px-2 py-0.5 rounded-full font-bold">促銷</span>` : ''}
+                </div>
                 <div class="mt-1">${surchargeTag}</div>
               </div>
             </div>
@@ -326,6 +355,7 @@
                 <span class="text-3xl font-bold ${totalColor}">${fmtPrice(r.total)}</span>
               </div>
               <p class="text-xs text-slate-400 text-right -mt-2">未含稅金及附加費用</p>
+              <p class="text-xs text-right mt-1.5 ${r.isPromo ? 'text-orange-500 font-medium' : 'text-slate-400'}">票價來源：${r.sourceLabel}</p>
             </div>
           </div>
         </div>`;
