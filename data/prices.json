@@ -1,6 +1,6 @@
 {
   "version": "1.2",
-  "lastUpdated": "2026-05-22",
+  "lastUpdated": "2026-05-25",
   "note": "票價未含稅金及附加費用。促銷票加入後與一般票日期重疊時，系統自動取低價。",
 
   "dateRanges": {
@@ -320,7 +320,7 @@
 
     {"id":"FUK-110_395","airline":"CI","dest":"FUK","out":["CI110"],"in":["CI395"],"label":"福岡 CI110去／CI395回（限至10/24）","drKey":"FUK_KMJ_KOJ",
      "p":[null,11500,11500,11000,9500,11500,9500,13500,14500,9500,13500,9500,14500,null,null,null,null,null,null],
-     "promoSlots":{"0":{"price":8500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"1":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"2":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"3":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"4":{"price":8500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"5":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"6":{"price":9000,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"}}},
+     "promoSlots":{"0":{"price":8500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"1":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"2":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"3":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"4":{"price":8500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"5":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"6":{"price":9000,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"}}},
 
     {"id":"KMJ-194_195","airline":"CI","dest":"KMJ","out":["CI194"],"in":["CI195"],"label":"熊本 CI194去／CI195回","drKey":"FUK_KMJ_KOJ",
      "p":[null,12500,12000,12000,10000,12000,10000,14500,15500,10500,14500,10000,14500,11000,14000,9500,13500,9500,9000]},
@@ -333,7 +333,7 @@
 
     {"id":"KMJ-394_395","airline":"CI","dest":"KMJ","out":["CI394"],"in":["CI395"],"label":"熊本 CI394去／CI395回（限至10/24）","drKey":"FUK_KMJ_KOJ",
      "p":[null,11500,11500,11000,9500,11500,9500,13500,14500,9500,13500,9500,14500,null,null,null,null,null,null],
-     "promoSlots":{"0":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"1":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"2":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"3":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"4":{"price":8500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"5":{"price":10500,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"},"6":{"price":9000,"source":"TTE東北亞促銷第二版(KMJ CI394/395)","ticketingEnd":"2026-06-01"}}},
+     "promoSlots":{"0":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"1":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"2":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"3":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"4":{"price":8500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"5":{"price":10500,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"},"6":{"price":9000,"source":"CI TTE東北亞促銷第二版REVISED(FUK/KMJ)","ticketingEnd":"2026-06-05"}}},
 
     {"id":"KMJ-394_117","airline":"CI","dest":"KMJ","out":["CI394"],"in":["CI117"],"label":"熊本 CI394去／CI117回（限至10/24）","drKey":"FUK_KMJ_KOJ",
      "p":[null,12000,12000,11500,10000,12000,10000,14000,15000,10000,14000,10000,15000,null,null,null,null,null,null]},
@@ -364,6 +364,66 @@
 
     {"id":"OKA-122_121","airline":"CI","dest":"OKA","out":["CI122"],"in":["CI121"],"label":"沖繩 CI122去／CI121回","drKey":"OKA",
      "p":[14000,10500,8500,8500,10500,9000,13500,14500,9000,13500,9000,13500,8500,6500,8500,6500]},
+
+    {"id":"NRT-promo-CI100_101","airline":"CI","dest":"NRT","out":["CI100","CI101"],"label":"東京（成田）CI100/CI101 促銷",
+     "datePrices":[
+       {"dates":["2026-07-19","2026-07-27","2026-07-31"],"price":16000},
+       {"dates":["2026-08-02","2026-08-03","2026-08-07","2026-08-08","2026-08-09"],"price":15000},
+       {"dates":["2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-16","2026-08-24","2026-08-25","2026-08-27","2026-08-29","2026-08-30","2026-08-31"],"price":11500},
+       {"dates":["2026-08-17","2026-08-20","2026-08-21","2026-08-23"],"price":16500}
+     ],"source":"CI TTE東北亞促銷第二版REVISED(NRT/NGO/KIX/KMJ)","ticketingEnd":"2026-06-05"},
+
+    {"id":"NRT-promo-CI104_105_109","airline":"CI","dest":"NRT","out":["CI104","CI105","CI109"],"label":"東京（成田）CI104/CI105/CI109 促銷",
+     "datePrices":[
+       {"dates":["2026-07-12","2026-07-17"],"price":13500},
+       {"dates":["2026-08-03","2026-08-07","2026-08-08","2026-08-09"],"price":13000},
+       {"dates":["2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16"],"price":10500},
+       {"dates":["2026-08-20","2026-08-21","2026-08-23","2026-08-24"],"price":14500},
+       {"dates":["2026-08-26","2026-08-28","2026-08-29"],"price":9500}
+     ],"source":"CI TTE東北亞促銷第二版REVISED(NRT/NGO/KIX/KMJ)","ticketingEnd":"2026-06-05"},
+
+    {"id":"NRT-promo-CI108_109","airline":"CI","dest":"NRT","out":["CI108","CI109"],"label":"東京（成田）CI108/CI109 促銷",
+     "datePrices":[
+       {"dates":["2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-19","2026-07-20","2026-07-21","2026-07-23","2026-07-25","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31"],"price":12500},
+       {"dates":["2026-08-01","2026-08-02","2026-08-03","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09"],"price":12000},
+       {"dates":["2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-15","2026-08-16"],"price":9500},
+       {"dates":["2026-08-18","2026-08-25"],"price":13500},
+       {"dates":["2026-08-27","2026-08-28","2026-08-30","2026-08-31"],"price":8500}
+     ],"source":"CI TTE東北亞促銷第二版REVISED(NRT/NGO/KIX/KMJ)","ticketingEnd":"2026-06-05"},
+
+    {"id":"NGO-promo-CI150_151","airline":"CI","dest":"NGO","out":["CI150","CI151"],"label":"名古屋 CI150/CI151 促銷",
+     "datePrices":[
+       {"dates":["2026-08-01","2026-08-06","2026-08-20","2026-08-21","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"],"price":9000}
+     ],"source":"CI TTE東北亞促銷第二版REVISED(NRT/NGO/KIX/KMJ)","ticketingEnd":"2026-06-05"},
+
+    {"id":"NGO-promo-CI154_155","airline":"CI","dest":"NGO","out":["CI154","CI155"],"label":"名古屋 CI154/CI155 促銷",
+     "datePrices":[
+       {"dates":["2026-07-19","2026-07-20","2026-07-31"],"price":13000},
+       {"dates":["2026-08-02","2026-08-17","2026-08-23"],"price":12000},
+       {"dates":["2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13"],"price":10000},
+       {"dates":["2026-08-24","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"],"price":10500}
+     ],"source":"CI TTE東北亞促銷第二版REVISED(NRT/NGO/KIX/KMJ)","ticketingEnd":"2026-06-05"},
+
+    {"id":"KIX-promo-CI156_157","airline":"CI","dest":"KIX","out":["CI156","CI157"],"label":"大阪（關西）CI156/CI157 促銷",
+     "datePrices":[
+       {"dates":["2026-06-28","2026-07-09","2026-07-10","2026-07-11"],"price":15500},
+       {"dates":["2026-08-03","2026-08-05","2026-08-06","2026-08-17","2026-08-20","2026-08-23"],"price":13000},
+       {"dates":["2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-27","2026-08-28","2026-08-29","2026-08-30"],"price":10000}
+     ],"source":"CI TTE東北亞促銷第二版REVISED(NRT/NGO/KIX/KMJ)","ticketingEnd":"2026-06-05"},
+
+    {"id":"KIX-promo-CI152_153","airline":"CI","dest":"KIX","out":["CI152","CI153"],"label":"大阪（關西）CI152/CI153 促銷",
+     "datePrices":[
+       {"dates":["2026-07-09","2026-07-10"],"price":15500},
+       {"dates":["2026-08-10","2026-08-11","2026-08-12","2026-08-14","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"],"price":10000},
+       {"dates":["2026-08-17","2026-08-21"],"price":13000}
+     ],"source":"CI TTE東北亞促銷第二版REVISED(NRT/NGO/KIX/KMJ)","ticketingEnd":"2026-06-05"},
+
+    {"id":"KIX-promo-CI172_173","airline":"CI","dest":"KIX","out":["CI172","CI173"],"label":"大阪（關西）CI172/CI173 促銷",
+     "datePrices":[
+       {"dates":["2026-07-08","2026-07-09","2026-07-11"],"price":16000},
+       {"dates":["2026-08-17","2026-08-18","2026-08-20"],"price":13500},
+       {"dates":["2026-08-24","2026-08-25","2026-08-27","2026-08-28","2026-08-30","2026-08-31"],"price":10500}
+     ],"source":"CI TTE東北亞促銷第二版REVISED(NRT/NGO/KIX/KMJ)","ticketingEnd":"2026-06-05"},
 
     {"id":"SDJ-BR118","airline":"BR","dest":"SDJ","out":["BR118"],"label":"仙台 BR118",
      "datePrices":[
