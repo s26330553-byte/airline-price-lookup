@@ -316,6 +316,7 @@
           departureDateStr, retDateStr, tripDays,
           basePrice, surcharge, surchargeNote, surchargeDetail,
           discount, isPromo, sourceLabel,
+          tourCode: route.tourCode || null,
           total: basePrice + surcharge - discount
         });
       }
@@ -412,6 +413,7 @@
               </div>
               <p class="text-xs text-slate-400 text-right -mt-2">未含稅金及附加費用</p>
               <p class="text-xs text-right mt-1.5 ${r.isPromo ? 'text-orange-500 font-medium' : 'text-slate-400'}">票價來源：${r.sourceLabel}</p>
+              ${r.tourCode ? `<p class="text-xs text-right mt-0.5 text-slate-500 font-mono">TOURCODE：<span class="font-bold text-slate-700 tracking-widest">${r.tourCode}</span></p>` : ''}
             </div>
           </div>
         </div>`;

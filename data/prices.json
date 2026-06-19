@@ -1,6 +1,6 @@
 {
   "version": "1.2",
-  "lastUpdated": "2026-06-18",
+  "lastUpdated": "2026-06-19",
   "note": "票價未含稅金及附加費用。促銷票加入後與一般票日期重疊時，系統自動取低價。",
   "dateRanges": {
     "NRT": [
@@ -8683,7 +8683,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "NRT-JX802",
@@ -8744,7 +8745,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "NRT-JX804",
@@ -8817,7 +8819,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "KIX-JX820_821",
@@ -8873,7 +8876,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "KIX-JX822_823",
@@ -8934,7 +8938,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "KIX-JX822_821",
@@ -9008,7 +9013,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "UKB-JX834",
@@ -9045,7 +9051,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "UKB-JX1834",
@@ -9067,7 +9074,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "NGO-JX",
@@ -9142,7 +9150,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "FUK-JX",
@@ -9188,7 +9197,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "KMJ-JX",
@@ -9253,7 +9263,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "SDJ-JX",
@@ -9294,7 +9305,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "HKD-JX",
@@ -9325,7 +9337,8 @@
         }
       ],
       "source": "JX 2026東北亞6-8月促銷V2",
-      "ticketingEnd": "2026-06-30"
+      "ticketingEnd": "2026-06-30",
+      "tourCode": "GCAB83"
     },
     {
       "id": "NRT-101-CI100-27H1",
