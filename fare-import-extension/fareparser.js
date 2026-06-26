@@ -697,10 +697,55 @@ function extractCILineTokens(line, year) {
 // BR 解析
 // ═══════════════════════════════════════════════════════════════
 
-function parseBR(fullText, fileName) {
-  const results = [];
-  const fareType = detectFareType(fileName);
+function parseBRDateHeader(text, year) {
+  const cleaned = text
+    .replace(/航線|出發班次|回程班次/g, '')
+    .replace(/[一-鿿]+/g, ' ')
+    .replace(/\([^)]*\)/g, ' ')
+    .trim();
 
+  const ranges = [];
+  const tokens = cleaned.split(/\s+/).filter(t => /\d+\/\d+/.test(t));
+
+  for (const t of tokens) {
+    // 6/27-7/31 (cross-month range)
+    const fullRange = t.match(/^(\d{1,2})\/(\d{1,2})-(\d{1,2})\/(\d{1,2})$/);
+    if (fullRange) {
+      ranges.push({
+        start: `${year}-${fullRange[1].padStart(2,'0')}-${fullRange[2].padStart(2,'0')}`,
+        end:   `${year}-${fullRange[3].padStart(2,'0')}-${fullRange[4].padStart(2,'0')}`,
+      });
+      continue;
+    }
+    // 8/8-16 (same-month range)
+    const shortRange = t.match(/^(\d{1,2})\/(\d{1,2})-(\d{1,2})$/);
+    if (shortRange) {
+      ranges.push({
+        start: `${year}-${shortRange[1].padStart(2,'0')}-${shortRange[2].padStart(2,'0')}`,
+        end:   `${year}-${shortRange[1].padStart(2,'0')}-${shortRange[3].padStart(2,'0')}`,
+      });
+      continue;
+    }
+    // 12/24.25 (dot-separated two dates, same month)
+    const dotRange = t.match(/^(\d{1,2})\/(\d{1,2})\.(\d{1,2})$/);
+    if (dotRange) {
+      ranges.push({
+        start: `${year}-${dotRange[1].padStart(2,'0')}-${dotRange[2].padStart(2,'0')}`,
+        end:   `${year}-${dotRange[1].padStart(2,'0')}-${dotRange[3].padStart(2,'0')}`,
+      });
+      continue;
+    }
+    // 9/23 (single date)
+    const single = t.match(/^(\d{1,2})\/(\d{1,2})$/);
+    if (single) {
+      const d = `${year}-${single[1].padStart(2,'0')}-${single[2].padStart(2,'0')}`;
+      ranges.push({ start: d, end: d });
+    }
+  }
+  return ranges;
+}
+
+function parseBR(fullText, fileName) {
   const versionMatch = fullText.match(/第\s*(\d+)\s*版/);
   const version = versionMatch ? `第${versionMatch[1]}版` : '';
 
@@ -714,101 +759,230 @@ function parseBR(fullText, fileName) {
   }
 
   const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const ymFull = fullText.match(/(\d{4})年/);
+  const tableYear = ymFull ? ymFull[1] : (issueDate ? issueDate.slice(0,4) : String(new Date().getFullYear()));
+  const fareType = detectFareType(fileName);
 
-  let headerLineIdx = -1;
-  let headerDates = [];
-  let tableYear = issueDate ? issueDate.substring(0, 4) : String(new Date().getFullYear());
+  const meta = {
+    airline:'BR', fare_type:fareType, version,
+    issue_date:issueDate, ticket_issue_start:issueDate, ticket_issue_end:'2099-12-31',
+    agent_discount:'0', tour_code:'', currency:'TWD', is_active:'TRUE', source_file:fileName,
+  };
 
+  // Collect all section header indices (lines with 出發班次 + dates)
+  const hdrIdxs = [];
   for (let i = 0; i < lines.length; i++) {
-    const l = lines[i];
-    const ymFull = l.match(/(\d{4})年/);
-    if (ymFull) tableYear = ymFull[1];
+    if (/出發班次/.test(lines[i]) && /\d+\/\d+/.test(lines[i])) hdrIdxs.push(i);
+  }
 
-    if (/出發班次/.test(l) && /\d+\/\d+/.test(l)) {
-      let isCTS = false;
-      for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
-        if (/\b116\b/.test(lines[j]) || /\b166\b/.test(lines[j])) {
-          isCTS = true; break;
-        }
-      }
-      if (isCTS) {
-        headerLineIdx = i;
-        headerDates = parseBRDateHeader(l, tableYear);
-        break;
-      }
+  const all = [];
+
+  // Extract prices from a fare row; treats "-" as 0 (no service); skips flight codes (<1000)
+  function brPrices(line) {
+    const result = [];
+    for (const tok of line.split(/\s+/)) {
+      if (tok === '-') { result.push(0); continue; }
+      const n = parseInt(tok.replace(/,/g,''));
+      if (!isNaN(n) && n >= 1000 && n <= 99999) result.push(n);
+    }
+    return result;
+  }
+
+  // Get fare rows (≥3 prices) between startIdx and endIdx
+  function getFareRows(startIdx, endIdx) {
+    const rows = [];
+    for (let i = startIdx; i < endIdx; i++) {
+      if (brPrices(lines[i]).length >= 3) rows.push(lines[i]);
+    }
+    return rows;
+  }
+
+  // Push rows for dest/dep/ret with given dates and prices; skips 0 (no-service)
+  function push(dest, dates, prices, dep, ret) {
+    const count = Math.min(dates.length, prices.length);
+    for (let k = 0; k < count; k++) {
+      if (!prices[k]) continue;
+      all.push({ ...meta, destination:dest,
+        dep_date_start:dates[k].start, dep_date_end:dates[k].end,
+        price:String(prices[k]), dep_flight:dep, ret_flight:ret });
     }
   }
 
-  if (headerLineIdx === -1 || headerDates.length === 0) return results;
+  // ── Full V4 parsing (10 section headers: CTS/SDJ+AOJ/KMQ/MYJ/NRT/KIX/UKB main/UKB sub/FUK/OKA) ──
+  if (hdrIdxs.length >= 10) {
+
+    // Section 0: CTS — dep=BR116/BR166, ret=BR165 or BR115
+    {
+      const dates = parseBRDateHeader(lines[hdrIdxs[0]], tableYear);
+      const rows = getFareRows(hdrIdxs[0]+1, hdrIdxs[1]);
+      const specs = [
+        { dep:'BR116', rets:['BR165','BR115'] },
+        { dep:'BR166', rets:['BR165','BR115'] },
+      ];
+      for (let ri = 0; ri < Math.min(specs.length, rows.length); ri++) {
+        const prices = brPrices(rows[ri]);
+        for (const ret of specs[ri].rets) push('CTS', dates, prices, specs[ri].dep, ret);
+      }
+    }
+
+    // Section 1: SDJ (rows 0-1) + AOJ (rows 2-3)
+    {
+      const dates = parseBRDateHeader(lines[hdrIdxs[1]], tableYear);
+      const rows = getFareRows(hdrIdxs[1]+1, hdrIdxs[2]);
+      const specs = [
+        { dest:'SDJ', dep:'BR118', ret:'BR117' },
+        { dest:'SDJ', dep:'BR118', ret:'BR121' },
+        { dest:'AOJ', dep:'BR122', ret:'BR117' },
+        { dest:'AOJ', dep:'BR122', ret:'BR121' },
+      ];
+      for (let ri = 0; ri < Math.min(specs.length, rows.length); ri++) {
+        push(specs[ri].dest, dates, brPrices(rows[ri]), specs[ri].dep, specs[ri].ret);
+      }
+    }
+
+    // Section 2: KMQ
+    {
+      const dates = parseBRDateHeader(lines[hdrIdxs[2]], tableYear);
+      const rows = getFareRows(hdrIdxs[2]+1, hdrIdxs[3]);
+      if (rows.length >= 1) push('KMQ', dates, brPrices(rows[0]), 'BR158', 'BR157');
+    }
+
+    // Section 3: MYJ
+    {
+      const dates = parseBRDateHeader(lines[hdrIdxs[3]], tableYear);
+      const rows = getFareRows(hdrIdxs[3]+1, hdrIdxs[4]);
+      if (rows.length >= 1) push('MYJ', dates, brPrices(rows[0]), 'BR110', 'BR109');
+    }
+
+    // Section 4: NRT — row 1 has split prices: 12,000(184) / 13,000(198) for one date column
+    {
+      const dates = parseBRDateHeader(lines[hdrIdxs[4]], tableYear);
+      let scanFrom = hdrIdxs[4] + 1;
+
+      // Row 1: "198/184   197/183   prices..."
+      if (scanFrom < hdrIdxs[5] && /\d{3}\/\d{3}/.test(lines[scanFrom])) {
+        const pricesHead = brPrices(lines[scanFrom]);
+        let p184 = 0, p198 = 0, tail = [];
+        for (let j = scanFrom + 1; j < Math.min(scanFrom + 6, hdrIdxs[5]); j++) {
+          const m184 = lines[j].match(/^([\d,]+)\(184\)/);
+          const m198 = lines[j].match(/^([\d,]+)\(198\)/);
+          if (m184) { p184 = parseInt(m184[1].replace(/,/g,'')); continue; }
+          if (m198) { p198 = parseInt(m198[1].replace(/,/g,'')); continue; }
+          if (!lines[j].includes('(') && brPrices(lines[j]).length >= 5) {
+            tail = brPrices(lines[j]);
+            scanFrom = j + 1;
+            break;
+          }
+        }
+        const p198full = [...pricesHead, p198, ...tail];
+        const p184full = [...pricesHead, p184, ...tail];
+        for (const [dep, prices] of [['BR198', p198full], ['BR184', p184full]]) {
+          for (const ret of ['BR197','BR183']) push('NRT', dates, prices, dep, ret);
+        }
+      }
+
+      // Rows 2-3: standard
+      const nrtRows = getFareRows(scanFrom, hdrIdxs[5]);
+      if (nrtRows.length >= 1) push('NRT', dates, brPrices(nrtRows[0]), 'BR196', 'BR195');
+      if (nrtRows.length >= 2) {
+        const prices = brPrices(nrtRows[1]);
+        for (const ret of ['BR197','BR183']) push('NRT', dates, prices, 'BR196', ret);
+      }
+    }
+
+    // Section 5: KIX — rows 3-4 have dep=BR130 implied (not shown in text)
+    {
+      const dates = parseBRDateHeader(lines[hdrIdxs[5]], tableYear);
+      const rows = getFareRows(hdrIdxs[5]+1, hdrIdxs[6]);
+      const specs = [
+        { dep:'BR178', rets:['BR177','BR131'] },
+        { dep:'BR132', rets:['BR177','BR131'] },
+        { dep:'BR130', rets:['BR177','BR131'] },  // dep implied
+        { dep:'BR130', rets:['BR129'] },            // dep implied
+      ];
+      for (let ri = 0; ri < Math.min(specs.length, rows.length); ri++) {
+        const prices = brPrices(rows[ri]);
+        for (const ret of specs[ri].rets) push('KIX', dates, prices, specs[ri].dep, ret);
+      }
+    }
+
+    // Section 6+7b: UKB — two headers, three rows total
+    {
+      // Row 1 from main UKB header
+      const dates1 = parseBRDateHeader(lines[hdrIdxs[6]], tableYear);
+      const rows1 = getFareRows(hdrIdxs[6]+1, hdrIdxs[7]);
+      if (rows1.length >= 1) push('UKB', dates1, brPrices(rows1[0]), 'BR134', 'BR133');
+
+      // Rows 2-3 from sub-header; dep=BR176 implied
+      const dates2 = parseBRDateHeader(lines[hdrIdxs[7]], tableYear);
+      const rows2 = getFareRows(hdrIdxs[7]+1, hdrIdxs[8]);
+      const ukbSpecs = [
+        { dep:'BR176', ret:'BR175' },
+        { dep:'BR176', ret:'BR133' },
+      ];
+      for (let ri = 0; ri < Math.min(ukbSpecs.length, rows2.length); ri++) {
+        push('UKB', dates2, brPrices(rows2[ri]), ukbSpecs[ri].dep, ukbSpecs[ri].ret);
+      }
+    }
+
+    // Section 8: FUK — text shows ret flight only; dep assigned by row order
+    {
+      const dates = parseBRDateHeader(lines[hdrIdxs[8]], tableYear);
+      const rows = getFareRows(hdrIdxs[8]+1, hdrIdxs[9]);
+      const specs = [
+        { dep:'BR106', ret:'BR105' },
+        { dep:'BR106', ret:'BR101' },
+        { dep:'BR102', ret:'BR105' },
+        { dep:'BR102', ret:'BR101' },
+      ];
+      for (let ri = 0; ri < Math.min(specs.length, rows.length); ri++) {
+        push('FUK', dates, brPrices(rows[ri]), specs[ri].dep, specs[ri].ret);
+      }
+    }
+
+    // Section 9: OKA — text shows ret flight only; dep assigned by row order
+    {
+      const dates = parseBRDateHeader(lines[hdrIdxs[9]], tableYear);
+      const rows = getFareRows(hdrIdxs[9]+1, lines.length);
+      const specs = [
+        { dep:'BR112', ret:'BR113' },
+        { dep:'BR112', ret:'BR185' },
+        { dep:'BR186', ret:'BR113' },
+        { dep:'BR186', ret:'BR185' },
+      ];
+      for (let ri = 0; ri < Math.min(specs.length, rows.length); ri++) {
+        push('OKA', dates, brPrices(rows[ri]), specs[ri].dep, specs[ri].ret);
+      }
+    }
+
+    return all;
+  }
+
+  // ── Fallback: CTS-only (V1/V2/V3 without all sections) ──
+  let headerLineIdx = -1;
+  let headerDates = [];
+  for (const hi of hdrIdxs) {
+    let hasCTS = false;
+    for (let j = hi + 1; j < Math.min(hi + 8, lines.length); j++) {
+      if (/\b116\b/.test(lines[j]) || /\b166\b/.test(lines[j])) { hasCTS = true; break; }
+    }
+    if (hasCTS) { headerLineIdx = hi; headerDates = parseBRDateHeader(lines[hi], tableYear); break; }
+  }
+  if (headerLineIdx === -1) return all;
 
   for (let i = headerLineIdx + 1; i < lines.length; i++) {
     const l = lines[i];
     if (/出發班次/.test(l) && /\d+\/\d+/.test(l)) break;
-
-    const depMatch = l.match(/^\s*(\d{3})\s+([\d/]+)\s+/);
-    if (!depMatch) continue;
-    const depNum = depMatch[1];
-    if (depNum !== '116' && depNum !== '166') continue;
-
-    const retRaw = depMatch[2];
-    const prices = extractNumPrices(l);
-    if (prices.length === 0) continue;
-
-    const retNum = retRaw.includes('165') ? '165' : retRaw.includes('115') ? '115' : retRaw;
-    const dep = 'BR' + depNum;
-    const ret = 'BR' + retNum;
-
-    const count = Math.min(headerDates.length, prices.length);
-    for (let k = 0; k < count; k++) {
-      results.push({
-        airline:'BR', fare_type: fareType, version,
-        issue_date: issueDate, ticket_issue_start: issueDate, ticket_issue_end:'2099-12-31',
-        destination:'CTS',
-        dep_date_start: headerDates[k].start, dep_date_end: headerDates[k].end,
-        price: String(prices[k]), agent_discount:'0',
-        dep_flight: dep, ret_flight: ret,
-        tour_code:'', currency:'TWD', is_active:'TRUE',
-        source_file: fileName,
-      });
-    }
+    const m = l.match(/^(\d{3})\s+([\d/]+)/);
+    if (!m || (m[1] !== '116' && m[1] !== '166')) continue;
+    const prices = brPrices(l);
+    if (!prices.length) continue;
+    const dep = 'BR' + m[1];
+    const retRaw = m[2];
+    const ret = 'BR' + (retRaw.includes('165') ? '165' : retRaw.includes('115') ? '115' : retRaw);
+    push('CTS', headerDates, prices, dep, ret);
   }
-  return results;
-}
-
-function parseBRDateHeader(text, year) {
-  const cleaned = text
-    .replace(/航線|出發班次|回程班次/g, '')
-    .replace(/[一-鿿]+/g, ' ')
-    .replace(/\([^)]*\)/g, ' ')
-    .trim();
-
-  const ranges = [];
-  const tokens = cleaned.split(/\s+/).filter(t => /\d+\/\d+/.test(t));
-
-  for (const t of tokens) {
-    const fullRange = t.match(/^(\d{1,2})\/(\d{1,2})-(\d{1,2})\/(\d{1,2})$/);
-    if (fullRange) {
-      ranges.push({
-        start: `${year}-${fullRange[1].padStart(2,'0')}-${fullRange[2].padStart(2,'0')}`,
-        end:   `${year}-${fullRange[3].padStart(2,'0')}-${fullRange[4].padStart(2,'0')}`,
-      });
-      continue;
-    }
-    const shortRange = t.match(/^(\d{1,2})\/(\d{1,2})-(\d{1,2})$/);
-    if (shortRange) {
-      ranges.push({
-        start: `${year}-${shortRange[1].padStart(2,'0')}-${shortRange[2].padStart(2,'0')}`,
-        end:   `${year}-${shortRange[1].padStart(2,'0')}-${shortRange[3].padStart(2,'0')}`,
-      });
-      continue;
-    }
-    const single = t.match(/^(\d{1,2})\/(\d{1,2})$/);
-    if (single) {
-      const d = `${year}-${single[1].padStart(2,'0')}-${single[2].padStart(2,'0')}`;
-      ranges.push({ start: d, end: d });
-    }
-  }
-  return ranges;
+  return all;
 }
 
 
