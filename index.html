@@ -268,7 +268,7 @@
       // 篩選符合條件的列
       const matching = SHEET_ROWS.filter(row => {
         if (row.is_active !== 'TRUE') return false;
-        if (row.dep_flight !== f && row.ret_flight !== f) return false;
+        if (!row.dep_flight.includes(f) && !row.ret_flight.includes(f)) return false;
         if (!row.dep_date_start || !row.dep_date_end) return false;
         const s = parseLocalDate(row.dep_date_start);
         const e = parseLocalDate(row.dep_date_end);

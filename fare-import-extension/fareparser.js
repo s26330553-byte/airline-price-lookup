@@ -154,9 +154,231 @@ function parseJxDateHeader(text, year) {
 // CI 解析
 // ═══════════════════════════════════════════════════════════════
 
+// CI 航班號 → 目的地對照表
+const CI_DEST_MAP = {
+  // NRT 東京成田
+  '100':'NRT','101':'NRT','104':'NRT','105':'NRT',
+  '106':'NRT','107':'NRT','108':'NRT','109':'NRT',
+  '110':'NRT','111':'NRT','116':'NRT','117':'NRT',
+  '128':'NRT','129':'NRT','194':'NRT','195':'NRT',
+  '394':'NRT','395':'NRT',
+  // NGO 名古屋
+  '150':'NGO','151':'NGO','154':'NGO','155':'NGO',
+  // CTS 札幌
+  '130':'CTS','131':'CTS',
+  // FUK 福岡
+  '152':'FUK','153':'FUK','156':'FUK','157':'FUK','172':'FUK','173':'FUK',
+  // OKA 沖繩
+  '178':'OKA','179':'OKA','278':'OKA','279':'OKA',
+  // KIX 大阪關西
+  '112':'KIX','113':'KIX','120':'KIX','121':'KIX','122':'KIX','123':'KIX',
+  // KOJ 鹿兒島
+  '118':'KOJ','119':'KOJ',
+  // HIJ 廣島
+  '140':'HIJ','141':'HIJ',
+  // TAK 高松
+  '134':'TAK','135':'TAK',
+  // KMJ 熊本
+  '160':'KMJ','161':'KMJ',
+};
+
+/**
+ * 從字串中提取 CI 航班號陣列，例如：
+ * "CI 156、CI 152" → ["CI156","CI152"]
+ * "118" → ["CI118"]
+ * "117/129" → ["CI117","CI129"]
+ */
+function extractCIFlightCodes(groupStr) {
+  const codes = [];
+  const ciRe = /CI\s*(\d{2,3})/g;
+  let m;
+  while ((m = ciRe.exec(groupStr)) !== null) codes.push('CI' + m[1]);
+  if (codes.length === 0) {
+    // 無 CI 前綴（例如 KOJ 段落）
+    const numRe = /\b(\d{3})\b/g;
+    while ((m = numRe.exec(groupStr)) !== null) codes.push('CI' + m[1]);
+  }
+  return [...new Set(codes)];
+}
+
+/**
+ * 從文件尾端的路線索引解析 NRT 出發航班分組
+ * CI2026 範例：TPE-NRT-TPE 之後有 CI100 / CI104 / CI108、CI106
+ * 回傳 ["CI100", "CI104", "CI108、CI106"]
+ */
+function parseCIRouteIndex(lines) {
+  let nrtIdx = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/TPE-NRT-TPE/i.test(lines[i])) { nrtIdx = i; break; }
+  }
+  if (nrtIdx < 0) return [];
+
+  const groups = [];
+  for (let i = nrtIdx + 1; i < Math.min(nrtIdx + 10, lines.length); i++) {
+    const l = lines[i].trim();
+    if (/^TPE-[A-Z]/i.test(l) || l.length === 0) break;
+    const flights = extractCIFlightCodes(l);
+    const nrtFlights = flights.filter(f => {
+      const num = f.match(/\d{3}/)?.[0];
+      return num && CI_DEST_MAP[num] === 'NRT';
+    });
+    if (nrtFlights.length > 0) groups.push(nrtFlights.join('、'));
+  }
+  return groups;
+}
+
+/**
+ * 解析單一 CI 票價列，回傳 {depFlights, retFlights, tuanXing, prices} 或 null
+ * 支援：
+ *  - dep + ret 兩組航班（一般情況）
+ *  - 只有 ret（NRT 合併格情況）
+ *  - 含 団型 欄（4D / 5D-8D / ALL / 鹿鹿 等）
+ */
+function parseCIFareRow(line) {
+  // 移除路線標籤，例如 TPE-CTS-TPE
+  const clean = line.trim().replace(/TPE-[A-Z]{3}(?:[xX×][A-Z]{3})?-TPE/gi, '').trim();
+  if (!/\b\d{1,2},\d{3}\b/.test(clean)) return null;
+
+  const pm = clean.match(/\d{1,2},\d{3}/);
+  if (!pm) return null;
+  const pStart = clean.indexOf(pm[0]);
+
+  const beforePrices = clean.substring(0, pStart).trim();
+  const prices = extractNumPrices(clean.substring(pStart));
+  if (prices.length === 0) return null;
+
+  // 按 2 個以上空白拆分為群組
+  const rawGroups = beforePrices.split(/\s{2,}/).map(g => g.trim()).filter(Boolean);
+
+  const flightGroups = [];
+  let tuanXing = '';
+
+  for (const g of rawGroups) {
+    if (/CI\s*\d{2,3}/.test(g) ||       // "CI 156", "CI 156、CI 152"
+        /^\d{3}(、\d{3})*$/.test(g) ||  // "118", "118、119"
+        /^\d{3}\/\d{3}$/.test(g)) {     // "117/129"
+      flightGroups.push(g);
+    } else if (g) {
+      tuanXing = tuanXing || g;          // 団型（4D / 5D-8D / ALL / 鹿鹿 …）
+    }
+  }
+
+  let depFlights = [];
+  let retFlights = [];
+
+  if (flightGroups.length >= 2) {
+    depFlights = extractCIFlightCodes(flightGroups[0]);
+    retFlights = extractCIFlightCodes(flightGroups[1]);
+  } else if (flightGroups.length === 1) {
+    retFlights = extractCIFlightCodes(flightGroups[0]);
+    // depFlights 留空 → NRT 合併格，之後由 nrtDepGroups 填入
+  }
+
+  if (depFlights.length + retFlights.length === 0) return null;
+  return { depFlights, retFlights, tuanXing, prices };
+}
+
+/**
+ * 處理單一區段（從一個「票價 出發班次 回程班次」標題開始）
+ * 回傳 [{destination, start, end, price, depFlight, retFlight, tuanXing}, ...]
+ */
+function processCISection(sectionLines, year, nrtDepGroups) {
+  // 跳過 CTS 區段（由 extractCIRows 處理，避免重複）
+  if (sectionLines.some(l => /TPE-CTS-TPE/.test(l))) return [];
+
+  // 找出第一個票價列的位置
+  const firstFareIdx = sectionLines.findIndex((l, i) => i > 0 && /\b\d{1,2},\d{3}\b/.test(l));
+  if (firstFareIdx < 0) return [];
+
+  const headerLines = sectionLines.slice(1, firstFareIdx);
+
+  // 解析所有票價列
+  const parsedRows = [];
+  for (let i = firstFareIdx; i < sectionLines.length; i++) {
+    const row = parseCIFareRow(sectionLines[i]);
+    if (row) parsedRows.push(row);
+  }
+  if (parsedRows.length === 0) return [];
+
+  // NRT 合併格：補入出發航班
+  const noDep = parsedRows.filter(r => r.depFlights.length === 0);
+  if (noDep.length > 0 && nrtDepGroups.length > 0) {
+    const firstRet = noDep[0].retFlights[0];
+    const firstRetNum = firstRet && firstRet.match(/\d{3}/)?.[0];
+    if (CI_DEST_MAP[firstRetNum] === 'NRT') {
+      const perGroup = Math.ceil(noDep.length / nrtDepGroups.length);
+      let gIdx = 0, cnt = 0;
+      for (const row of parsedRows) {
+        if (row.depFlights.length === 0) {
+          row.depFlights = extractCIFlightCodes(nrtDepGroups[gIdx] || '');
+          cnt++;
+          if (cnt >= perGroup && gIdx < nrtDepGroups.length - 1) { gIdx++; cnt = 0; }
+        }
+      }
+    }
+  }
+
+  // 解析日期表頭（以第一列的價格數量為基準）
+  const P0 = parsedRows[0].prices.length;
+  const baseColumns = parseCIDateColumnsFromLines(headerLines, year, P0);
+
+  const results = [];
+  for (const row of parsedRows) {
+    const depStr = row.depFlights.join('、');
+    const retStr = row.retFlights.join('、');
+
+    // 從出發或回程第一個航班號判斷目的地
+    const keyFlight = row.depFlights[0] || row.retFlights[0];
+    const flightNum = keyFlight && keyFlight.match(/\d{3}/)?.[0];
+    const destination = flightNum ? (CI_DEST_MAP[flightNum] || null) : null;
+    if (!destination) continue;
+
+    const P = row.prices.length;
+    const columns = P === P0 ? baseColumns : parseCIDateColumnsFromLines(headerLines, year, P);
+
+    for (let i = 0; i < Math.min(columns.length, P); i++) {
+      for (const dr of columns[i]) {
+        results.push({
+          destination,
+          start: dr.start, end: dr.end,
+          price: row.prices[i],
+          depFlight: depStr,
+          retFlight: retStr,
+          tuanXing: row.tuanXing || '',
+        });
+      }
+    }
+  }
+  return results;
+}
+
+/**
+ * 提取 CI PDF 中所有非 CTS 航點的票價列
+ */
+function extractCIAllOtherRows(fullText, year) {
+  const lines = fullText.split('\n').map(l => l.trim());
+  const nrtDepGroups = parseCIRouteIndex(lines);
+
+  // 找所有區段起始點（含「票價」及「出發班次」的行）
+  const sectionStarts = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/票價/.test(lines[i]) && /出發班次/.test(lines[i])) sectionStarts.push(i);
+  }
+
+  const allRows = [];
+  for (let s = 0; s < sectionStarts.length; s++) {
+    const start = sectionStarts[s];
+    const end = s + 1 < sectionStarts.length ? sectionStarts[s + 1] : lines.length;
+    const rows = processCISection(lines.slice(start, end), year, nrtDepGroups);
+    allRows.push(...rows);
+  }
+  return allRows;
+}
+
 function parseCI(fullText, fileName) {
   const results = [];
   const fareType = detectFareType(fileName);
+  const discount = fareType !== 'Promotion' ? -500 : 0;
 
   const versionMatch = fullText.match(/第[（(]?(\d+)[）)]?版/);
   const version = versionMatch ? `第${versionMatch[1]}版` : '';
@@ -187,9 +409,9 @@ function parseCI(fullText, fileName) {
     ticketStart = `${y2}-${String(mo2).padStart(2,'0')}-${String(parseInt(ticketStartMatch[1])).padStart(2,'0')}`;
   }
 
+  // 1. CTS（沿用原有邏輯，已驗證正確）
   const ctsRows = extractCIRows(fullText, year);
   for (const row of ctsRows) {
-    const discount = fareType !== 'Promotion' ? -500 : 0;
     results.push({
       airline:'CI', fare_type: fareType, version,
       issue_date: issueDate, ticket_issue_start: ticketStart, ticket_issue_end:'2099-12-31',
@@ -201,6 +423,23 @@ function parseCI(fullText, fileName) {
       source_file: fileName,
     });
   }
+
+  // 2. 其他航點（新邏輯）
+  const otherRows = extractCIAllOtherRows(fullText, year);
+  for (const row of otherRows) {
+    if (row.destination === 'CTS') continue;
+    results.push({
+      airline:'CI', fare_type: fareType, version,
+      issue_date: issueDate, ticket_issue_start: ticketStart, ticket_issue_end:'2099-12-31',
+      destination: row.destination,
+      dep_date_start: row.start, dep_date_end: row.end,
+      price: String(row.price + discount), agent_discount: String(discount),
+      dep_flight: row.depFlight, ret_flight: row.retFlight,
+      tour_code: row.tuanXing || '', currency:'TWD', is_active:'TRUE',
+      source_file: fileName,
+    });
+  }
+
   return results;
 }
 
