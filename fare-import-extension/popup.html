@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; width: 320px; padding: 16px; margin: 0; background: #f5f5f5; }
+    h2 { margin: 0 0 12px; font-size: 15px; color: #1a73e8; }
+    .info { background: white; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; font-size: 13px; border: 1px solid #e0e0e0; }
+    .info label { color: #888; font-size: 11px; display: block; margin-bottom: 2px; }
+    .info span { font-weight: bold; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+    .badge-ci { background: #e3f2fd; color: #1565c0; }
+    .badge-br { background: #e8f5e9; color: #2e7d32; }
+    .badge-jx { background: #fff3e0; color: #e65100; }
+    .badge-unknown { background: #eee; color: #666; }
+    button { width: 100%; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+    #btnImport { background: #1a73e8; color: white; margin-bottom: 8px; }
+    #btnImport:disabled { background: #aaa; cursor: default; }
+    #btnImport:hover:not(:disabled) { background: #1558b0; }
+    #status { font-size: 12px; min-height: 20px; color: #333; padding: 6px 0; text-align: center; }
+    .error { color: #c62828; }
+    .success { color: #2e7d32; }
+    .rows-preview { font-size: 11px; color: #666; margin-top: 4px; }
+    #sheetId { font-size: 11px; color: #555; word-break: break-all; padding: 4px 0; }
+  </style>
+</head>
+<body>
+  <h2>✈️ 票價表匯入工具</h2>
+
+  <div class="info">
+    <label>偵測到的票價表</label>
+    <span id="airlineBadge" class="badge badge-unknown">偵測中...</span>
+    <span id="fareTypeText" style="margin-left:6px; font-size:12px;"></span>
+    <div class="rows-preview" id="rowsPreview"></div>
+  </div>
+
+  <div class="info">
+    <label>目標 Google Sheet</label>
+    <div id="sheetId">載入中...</div>
+  </div>
+
+  <div class="info" id="filePickerArea">
+    <label>選擇票價表 PDF</label>
+    <input type="file" id="filePicker" accept=".pdf" style="font-size:12px; width:100%; margin-top:4px;">
+  </div>
+
+  <button id="btnImport" disabled>📥 匯入到 Google Sheets</button>
+  <div id="status"></div>
+
+  <div style="font-size:11px; color:#aaa; margin-top:8px; text-align:center;">
+    僅擷取北海道（CTS/HKD）航班資料
+  </div>
+
+  <script src="lib/pdf.min.js"></script>
+  <script src="fareparser.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

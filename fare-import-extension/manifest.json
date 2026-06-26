@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "票價表匯入工具",
+  "version": "1.0",
+  "description": "從 CI/BR/JX 票價 PDF 直接匯入 Google Sheets",
+  "permissions": ["identity", "activeTab", "storage", "scripting"],
+  "host_permissions": [
+    "https://sheets.googleapis.com/*",
+    "https://accounts.google.com/*",
+    "file:///*",
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "票價表匯入"
+  },
+  "oauth2": {
+    "client_id": "807174490550-l93kigv1fhrcin7hj7c93c1b18s4nejf.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/spreadsheets"]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/pdf.worker.min.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
