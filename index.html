@@ -127,8 +127,69 @@
       },
       JX: {
         name: '星宇航空',
-        weekendSurcharge: { CTS: 1000, HKD: 1000, SDJ: 1000, default: 500 },
+        weekendSurcharge: {
+          OKA: 1000, CTS: 1000, HKD: 1000, SDJ: 1000,
+          SHI: 500, TYO: 500, KIX: 500, UKB: 500, NGO: 500, FUK: 500, KMJ: 500, PUS: 500,
+          default: 500,
+        },
         weekendExemptions: {},
+        // 加減價區間：特定出發日額外加收（跨假日前後）
+        dateAdjustments: {
+          TYO: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 500 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 500 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 500 },
+          ],
+          KIX: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 500 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 500 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 500 },
+          ],
+          UKB: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 500 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 500 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 500 },
+          ],
+          NGO: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 500 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 500 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 500 },
+          ],
+          FUK: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 500 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 500 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 500 },
+          ],
+          KMJ: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 500 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 500 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 500 },
+          ],
+          CTS: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 1000 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 1000 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 1000 },
+          ],
+          HKD: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 1000 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 1000 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 1000 },
+          ],
+          SDJ: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 1000 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 1000 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 1000 },
+          ],
+          OKA: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 500 },
+            { dates: ['2026-10-06', '2026-10-25'], amount: 500 },
+          ],
+          PUS: [
+            { dates: ['2026-09-22', '2026-09-27'], amount: 500 },
+            { dates: ['2026-10-06', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25'], amount: 500 },
+            { dates: ['2026-12-22', '2026-12-29'], amount: 500 },
+          ],
+        },
       },
     };
 
@@ -321,6 +382,17 @@
           }
         }
 
+        // 加減價區間（JX 特定出發日）
+        let dateAdj = 0, dateAdjNote = '';
+        const adjList = (airlineConfig.dateAdjustments || {})[dest] || [];
+        for (const adj of adjList) {
+          if (adj.dates.includes(departureDateStr)) {
+            dateAdj = adj.amount;
+            dateAdjNote = `+ NT$ ${adj.amount.toLocaleString()}（出發日加價）`;
+            break;
+          }
+        }
+
         // 回程日
         const depDate = parseLocalDate(departureDateStr);
         const retDate = new Date(depDate.getFullYear(), depDate.getMonth(), depDate.getDate() + tripDays - 1);
@@ -333,10 +405,11 @@
           flightInput: f,
           departureDateStr, retDateStr, tripDays,
           basePrice, surcharge, surchargeNote, surchargeDetail,
+          dateAdj, dateAdjNote,
           isPromo,
           sourceLabel: row.source_file || row.fare_type,
           tourCode: row.tour_code || null,
-          total: basePrice + surcharge,
+          total: basePrice + surcharge + dateAdj,
         });
       }
 
@@ -367,11 +440,12 @@
 
     // ── 可查詢航班清單 ────────────────────────────────────────
     const DEST_NAMES = {
-      NRT: '東京（成田）', NGO: '名古屋', CTS: '札幌（新千歲）',
+      NRT: '東京（成田）', TYO: '東京（成田）', NGO: '名古屋', CTS: '札幌（新千歲）',
       KIX: '大阪（關西）', TAK: '高松', HIJ: '廣島',
       FUK: '福岡', KMJ: '熊本', KOJ: '鹿兒島', OKA: '沖繩',
       SDJ: '仙台', AOJ: '青森', KMQ: '小松', MYJ: '松山（愛媛）',
-      HKD: '函館', UKB: '神戶（UKB）', ICN: '首爾（仁川）', GMP: '首爾（金浦）',
+      HKD: '函館', UKB: '神戶（UKB）', SHI: '石垣島', PUS: '釜山',
+      ICN: '首爾（仁川）', GMP: '首爾（金浦）',
     };
 
     const DEST_ORDER = {
@@ -505,6 +579,12 @@
                 </div>
                 <span class="font-medium text-base">${r.surchargeNote}</span>
               </div>
+
+              ${r.dateAdj > 0 ? `
+              <div class="flex justify-between items-baseline text-orange-600">
+                <div>出發日加價</div>
+                <span class="font-medium text-base">${r.dateAdjNote}</span>
+              </div>` : ''}
 
               <div class="border-t border-slate-200 pt-4 flex justify-between items-center">
                 <span class="font-bold text-slate-800">最終票價</span>

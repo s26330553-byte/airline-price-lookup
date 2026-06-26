@@ -40,8 +40,6 @@ function extractNumPrices(text) {
 // ═══════════════════════════════════════════════════════════════
 
 function parseJX(fullText, fileName) {
-  const results = [];
-
   const versionMatch = fullText.match(/版本\s*(\d+)/);
   const version = versionMatch ? `第${versionMatch[1]}版` : '';
   const issueDateMatch = fullText.match(/(\d{4}-\d{2}-\d{2})/);
@@ -51,67 +49,154 @@ function parseJX(fullText, fileName) {
   const yearMatch = fullText.match(/適用出發區間\s*(\d{4})\//);
   const year = yearMatch ? yearMatch[1] : new Date().getFullYear().toString();
 
-  for (const { label, flight } of [{ label:'CTS', flight:'JX850' }, { label:'HKD', flight:'JX860' }]) {
-    const rows = extractJxRows(fullText, label, year);
-    for (const row of rows) {
-      results.push({
-        airline:'JX', fare_type:'Standard', version,
-        issue_date: issueDate, ticket_issue_start: issueDate, ticket_issue_end:'2099-12-31',
-        destination: label,
-        dep_date_start: row.start, dep_date_end: row.end,
-        price: String(row.price), agent_discount:'0',
-        dep_flight: flight, ret_flight:'',
-        tour_code: tourCode, currency:'TWD', is_active:'TRUE',
-        source_file: fileName,
-      });
-    }
+  const meta = {
+    airline:'JX', fare_type:'Standard', version,
+    issue_date:issueDate, ticket_issue_start:issueDate, ticket_issue_end:'2099-12-31',
+    tour_code:tourCode, currency:'TWD', is_active:'TRUE', source_file:fileName,
+    agent_discount:'0',
+  };
+  const lines = fullText.split('\n');
+  const all = [];
+  const push = (dest, dep, ret, rows) => {
+    for (const r of rows) all.push({ ...meta, destination:dest, dep_date_start:r.start, dep_date_end:r.end, price:String(r.price), dep_flight:dep, ret_flight:ret });
+  };
+
+  // Simple sections: single fare row starting with dest label
+  const simpleMap = [
+    { label:'OKA',       dest:'OKA', dep:'JX870',  ret:'' },
+    { label:'SHI',       dest:'SHI', dep:'JX886',  ret:'JX890' },
+    { label:'UKB',       dest:'UKB', dep:'JX834',  ret:'JX1834' },
+    { label:'NGO',       dest:'NGO', dep:'JX838',  ret:'' },
+    { label:'FUK X KMJ', dest:'FUK', dep:'JX840',  ret:'JX847' },
+    { label:'FUK',       dest:'FUK', dep:'JX840',  ret:'' },
+    { label:'KMJ',       dest:'KMJ', dep:'JX847',  ret:'' },
+    { label:'CTS',       dest:'CTS', dep:'JX850',  ret:'' },
+    { label:'HKD',       dest:'HKD', dep:'JX850',  ret:'' },
+    { label:'SDJ',       dest:'SDJ', dep:'JX860',  ret:'' },
+  ];
+  for (const { label, dest, dep, ret } of simpleMap) {
+    push(dest, dep, ret, extractJxSimpleRows(lines, label, year));
   }
-  return results;
+
+  // TYO: 3 consecutive price-only rows (no dest label), dep = JX800/802/804
+  for (const r of extractJxTYORows(lines, year)) {
+    all.push({ ...meta, destination:'TYO', dep_date_start:r.start, dep_date_end:r.end, price:String(r.price), dep_flight:r.dep, ret_flight:'' });
+  }
+
+  // KIX: rows with explicit dep+ret in the line
+  for (const r of extractJxKIXRows(lines, year)) {
+    all.push({ ...meta, destination:'KIX', dep_date_start:r.start, dep_date_end:r.end, price:String(r.price), dep_flight:r.dep, ret_flight:r.ret });
+  }
+
+  // PUS: 4 rows starting with JX901/JX903 (ret), dep = JX900/JX902
+  for (const r of extractJxPUSRows(lines, year)) {
+    all.push({ ...meta, destination:'PUS', dep_date_start:r.start, dep_date_end:r.end, price:String(r.price), dep_flight:r.dep, ret_flight:r.ret });
+  }
+
+  return all;
 }
 
-function extractJxRows(fullText, label, year) {
-  const lines = fullText.split('\n');
-
-  // Find the fare row: line starting with label followed by $ prices
-  let fareIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i].trim();
-    if (l.startsWith(label) && /\$\d/.test(l)) {
-      fareIdx = i;
-      break;
-    }
-  }
-  if (fareIdx < 0) return [];
-
-  const prices = extractDollarPrices(lines[fareIdx]);
-  if (prices.length === 0) return [];
-
-  // Search backward for the Route header (max 20 lines)
+function _jxRouteHeader(lines, fareIdx) {
   let routeIdx = -1;
-  for (let j = fareIdx - 1; j >= Math.max(0, fareIdx - 20); j--) {
-    if (/^\s*Route\b/.test(lines[j])) {
-      routeIdx = j;
-      break;
+  for (let j = fareIdx - 1; j >= Math.max(0, fareIdx - 22); j--) {
+    if (/^\s*Route\b/i.test(lines[j])) { routeIdx = j; break; }
+  }
+  if (routeIdx < 0) return null;
+  return lines.slice(routeIdx, fareIdx).join(' ')
+    .replace(/^\s*Route\s+/i, '').replace(/\([^)]*\)/g, ' ')
+    .replace(/[一-鿿]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function _jxFareRows(headerText, priceLines, year) {
+  const groups = parseJxDateHeader(headerText, year);
+  const result = [];
+  for (const priceLine of priceLines) {
+    const prices = extractDollarPrices(priceLine);
+    const count = Math.min(groups.length, prices.length);
+    for (let i = 0; i < count; i++) {
+      for (const d of groups[i]) result.push({ start:d.start, end:d.end, price:prices[i] });
     }
   }
-  if (routeIdx < 0) return [];
+  return result;
+}
 
-  // Collect header lines from routeIdx to fareIdx (exclusive), concatenate
-  const headerText = lines.slice(routeIdx, fareIdx)
-    .join(' ')
-    .replace(/^\s*Route\s+/, '')      // strip "Route" prefix
-    .replace(/\([^)]*\)/g, ' ')       // remove (PP) (P) (OB) (中秋) etc.
-    .replace(/[一-鿿]+/g, ' ')        // remove Chinese chars
-    .replace(/\s+/g, ' ')
-    .trim();
+function extractJxSimpleRows(lines, label, year) {
+  const esc = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('^\\s*' + esc + '(\\s|$)');
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (!re.test(l) || !/\$\d/.test(l)) continue;
+    const headerText = _jxRouteHeader(lines, i);
+    if (!headerText) continue;
+    return _jxFareRows(headerText, [l], year);
+  }
+  return [];
+}
 
-  const groups = parseJxDateHeader(headerText, year);
-  const count = Math.min(groups.length, prices.length);
+function extractJxTYORows(lines, year) {
+  // TYO rows: lines starting with '$' (no label, no flight prefix)
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*\$[\d,]/.test(lines[i])) continue;
+    // Collect consecutive price-only lines
+    let end = i;
+    while (end < lines.length && /^\s*\$[\d,]/.test(lines[end])) end++;
+    const runLen = end - i;
+    if (runLen < 2) { i = end; continue; }
+    const headerText = _jxRouteHeader(lines, i);
+    if (!headerText) { i = end; continue; }
+    const depFlights = ['JX800', 'JX802', 'JX804'];
+    const result = [];
+    for (let k = 0; k < Math.min(runLen, depFlights.length); k++) {
+      const prices = extractDollarPrices(lines[i + k]);
+      const groups = parseJxDateHeader(headerText, year);
+      const count = Math.min(groups.length, prices.length);
+      for (let m = 0; m < count; m++) {
+        for (const d of groups[m]) result.push({ start:d.start, end:d.end, price:prices[m], dep:depFlights[k] });
+      }
+    }
+    return result;
+  }
+  return [];
+}
+
+function extractJxKIXRows(lines, year) {
   const result = [];
-  for (let i = 0; i < count; i++) {
-    const price = prices[i];
-    for (const dateItem of groups[i]) {
-      result.push({ start: dateItem.start, end: dateItem.end, price });
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^\s*(JX8\d{2})\s+(JX8\d{2})\s+\$/);
+    if (!m) continue;
+    const dep = m[1], ret = m[2];
+    const headerText = _jxRouteHeader(lines, i);
+    if (!headerText) continue;
+    const prices = extractDollarPrices(lines[i]);
+    const groups = parseJxDateHeader(headerText, year);
+    const count = Math.min(groups.length, prices.length);
+    for (let k = 0; k < count; k++) {
+      for (const d of groups[k]) result.push({ start:d.start, end:d.end, price:prices[k], dep, ret });
+    }
+  }
+  return result;
+}
+
+function extractJxPUSRows(lines, year) {
+  const pusFlights = [
+    { dep:'JX900', ret:'JX901' }, { dep:'JX900', ret:'JX903' },
+    { dep:'JX902', ret:'JX901' }, { dep:'JX902', ret:'JX903' },
+  ];
+  const idxs = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*JX9\d{2}\s+\$/.test(lines[i])) idxs.push(i);
+  }
+  if (idxs.length < 4) return [];
+  const headerText = _jxRouteHeader(lines, idxs[0]);
+  if (!headerText) return [];
+  const groups = parseJxDateHeader(headerText, year);
+  const result = [];
+  for (let k = 0; k < Math.min(idxs.length, pusFlights.length); k++) {
+    const prices = extractDollarPrices(lines[idxs[k]]);
+    const count = Math.min(groups.length, prices.length);
+    const { dep, ret } = pusFlights[k];
+    for (let m = 0; m < count; m++) {
+      for (const d of groups[m]) result.push({ start:d.start, end:d.end, price:prices[m], dep, ret });
     }
   }
   return result;
@@ -119,8 +204,7 @@ function extractJxRows(fullText, label, year) {
 
 /**
  * JX 日期表頭解析 — 回傳 column groups
- * groups[i] = [{ start, end }, ...] 所有日期共用 prices[i]
- * 「M/D & M/D」表示同一個 price column，兩個日期都用相同票價
+ * groups[i] = [{ start, end }, ...] 同一 price column 可包含多個日期（&連接）
  */
 function parseJxDateHeader(text, year) {
   const cleaned = text.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
@@ -137,7 +221,6 @@ function parseJxDateHeader(text, year) {
       dateItem = { start: toISO(t, year), end: toISO(t, year) };
     }
     if (dateItem) {
-      // Check if previous token was '&' → add to current group (same price)
       if (i > 0 && tokens[i - 1] === '&' && groups.length > 0) {
         groups[groups.length - 1].push(dateItem);
       } else {
