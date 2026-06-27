@@ -292,7 +292,7 @@ function extractCIFlightCodes(groupStr) {
 function parseCIRouteIndex(lines) {
   let nrtIdx = -1;
   for (let i = lines.length - 1; i >= 0; i--) {
-    if (/TPE-NRT-TPE/i.test(lines[i])) { nrtIdx = i; break; }
+    if (/TPE[-/]NRT[-/]TPE/i.test(lines[i])) { nrtIdx = i; break; }
   }
   if (nrtIdx < 0) return [];
 
@@ -318,8 +318,8 @@ function parseCIRouteIndex(lines) {
  *  - 含 団型 欄（4D / 5D-8D / ALL / 鹿鹿 等）
  */
 function parseCIFareRow(line) {
-  // 移除路線標籤，例如 TPE-CTS-TPE
-  const clean = line.trim().replace(/TPE-[A-Z]{3}(?:[xX×][A-Z]{3})?-TPE/gi, '').trim();
+  // 移除路線標籤，例如 TPE-CTS-TPE 或 TPE/CTS/TPE
+  const clean = line.trim().replace(/TPE[-/][A-Z]{3}(?:[xX×][A-Z]{3})?[-/]TPE/gi, '').trim();
   if (!/\b\d{1,2},\d{3}\b/.test(clean)) return null;
 
   const pm = clean.match(/\d{1,2},\d{3}/);
@@ -327,7 +327,12 @@ function parseCIFareRow(line) {
   const pStart = clean.indexOf(pm[0]);
 
   const beforePrices = clean.substring(0, pStart).trim();
-  const prices = extractNumPrices(clean.substring(pStart));
+  // 支援 "-" 佔位（無服務），記為 0
+  const prices = [];
+  for (const tok of clean.substring(pStart).split(/\s+/)) {
+    if (tok === '-') { prices.push(0); continue; }
+    if (/^\d{1,2},\d{3}$/.test(tok)) prices.push(parseInt(tok.replace(/,/g, ''), 10));
+  }
   if (prices.length === 0) return null;
 
   // 按 2 個以上空白拆分為群組
@@ -367,13 +372,13 @@ function parseCIFareRow(line) {
  */
 function processCISection(sectionLines, year, nrtDepGroups) {
   // 跳過 CTS 區段（由 extractCIRows 處理，避免重複）
-  if (sectionLines.some(l => /TPE-CTS-TPE/.test(l))) return [];
+  if (sectionLines.some(l => /TPE[-/]CTS[-/]TPE/.test(l))) return [];
 
   // 找出第一個票價列的位置
   const firstFareIdx = sectionLines.findIndex((l, i) => i > 0 && /\b\d{1,2},\d{3}\b/.test(l));
   if (firstFareIdx < 0) return [];
 
-  const headerLines = sectionLines.slice(1, firstFareIdx);
+  const headerLines = sectionLines.slice(0, firstFareIdx);
 
   // 解析所有票價列
   const parsedRows = [];
@@ -420,6 +425,7 @@ function processCISection(sectionLines, year, nrtDepGroups) {
     const columns = P === P0 ? baseColumns : parseCIDateColumnsFromLines(headerLines, year, P);
 
     for (let i = 0; i < Math.min(columns.length, P); i++) {
+      if (!row.prices[i]) continue;  // 跳過 "-"（無服務）
       for (const dr of columns[i]) {
         results.push({
           destination,
@@ -442,10 +448,13 @@ function extractCIAllOtherRows(fullText, year) {
   const lines = fullText.split('\n').map(l => l.trim());
   const nrtDepGroups = parseCIRouteIndex(lines);
 
-  // 找所有區段起始點（含「票價」及「出發班次」的行）
+  // 找所有區段起始點（2026 H2：「票價+出發班次」；2027 H1+：「出發班次+回程班次+日期」）
   const sectionStarts = [];
   for (let i = 0; i < lines.length; i++) {
-    if (/票價/.test(lines[i]) && /出發班次/.test(lines[i])) sectionStarts.push(i);
+    if ((/票價/.test(lines[i]) && /出發班次/.test(lines[i])) ||
+        (/出發班次/.test(lines[i]) && /回程班次/.test(lines[i]) && /\d+\/\d+/.test(lines[i]))) {
+      sectionStarts.push(i);
+    }
   }
 
   const allRows = [];
@@ -463,7 +472,7 @@ function parseCI(fullText, fileName) {
   const fareType = detectFareType(fileName);
   const discount = fareType !== 'Promotion' ? -500 : 0;
 
-  const versionMatch = fullText.match(/第[（(]?(\d+)[）)]?版/);
+  const versionMatch = fullText.match(/第[（(]?(\d+|[一二三四五六七八九十]+)[）)]?版/);
   const version = versionMatch ? `第${versionMatch[1]}版` : '';
 
   const issueDateMatch = fullText.match(/(\d{2})([A-Z]{3})(\d{2,4})/i);
@@ -660,7 +669,9 @@ function extractCILineTokens(line, year) {
   // 修復「1/1- 1/4」或「8/8 -8/16」→「1/1-1/4」
   s = s.replace(/(\d+\/\d+)\s*-\s*(\d+\/\d+)/g, '$1-$2');
 
-  // 半形逗號視為空白（不轉成 、，保持各自獨立）
+  // 半形逗號在兩個日期之間 → 同欄（等同「、」）
+  s = s.replace(/(\d+\/\d+)\s*,\s*(\d+\/\d+)/g, '$1、$2');
+  // 剩餘半形逗號視為空白
   s = s.replace(/,/g, ' ');
 
   const parts = s.split(/\s+/).filter(t => /\d/.test(t));
@@ -684,6 +695,10 @@ function extractCILineTokens(line, year) {
     } else if (/^\d+\/\d+-\d+\/\d+$/.test(t)) {
       const [s2, e2] = t.split('-');
       tokens.push([{ start: toISO(s2, year), end: toISO(e2, year) }]);
+    } else if (/^\d+\/\d+-\d+$/.test(t)) {
+      // 同月範圍，例如「6/10-18」→ 6/10 ~ 6/18
+      const m2 = t.match(/^(\d+)\/(\d+)-(\d+)$/);
+      if (m2) tokens.push([{ start: toISO(`${m2[1]}/${m2[2]}`, year), end: toISO(`${m2[1]}/${m2[3]}`, year) }]);
     } else if (/^\d+\/\d+$/.test(t)) {
       tokens.push([{ start: toISO(t, year), end: toISO(t, year) }]);
     }
