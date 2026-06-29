@@ -338,6 +338,10 @@
         const s = parseLocalDate(row.dep_date_start);
         const e = parseLocalDate(row.dep_date_end);
         if (d < s || d > e) return false;
+        // 票價表尚未生效（ticket_issue_start 還沒到）→ 不顯示
+        if (row.ticket_issue_start) {
+          if (today < parseLocalDate(row.ticket_issue_start)) return false;
+        }
         // 促銷票：開票截止日到期則不顯示
         if (row.ticket_issue_end && row.ticket_issue_end !== '2099-12-31') {
           if (today > parseLocalDate(row.ticket_issue_end)) return false;
@@ -349,14 +353,23 @@
         error: `航班「${flightInput}」在 ${departureDateStr} 無對應票價（可能已超出此航班的銷售區間）`
       };
 
-      // 按（去程航班、回程航班、目的地）分組，取各組最低票價列
-      const groups = {};
+      // Step 1：同一票價表家族（source_file 去掉版本號）× 票種 × 航班 → 取最晚生效日（版本升級）
+      const byTable = {};
       for (const row of matching) {
+        const tableBase = (row.source_file || '').replace(/[（(]第[一二三四五六七八九十百\d]+版[）)]/g, '').replace(/_已處理$/i, '').trim();
+        const key = `${row.fare_type}|${row.dep_flight}|${row.ret_flight}|${row.destination}|${tableBase}`;
+        if (!byTable[key]) { byTable[key] = row; continue; }
+        const cur = byTable[key].ticket_issue_start || '';
+        const nw  = row.ticket_issue_start || '';
+        if (nw > cur) byTable[key] = row;
+      }
+
+      // Step 2：同航班 × 目的地 → 取最低票價（促銷票優先）
+      const groups = {};
+      for (const row of Object.values(byTable)) {
         const key = `${row.dep_flight}|${row.ret_flight}|${row.destination}`;
         const px = parseInt(row.price) || 0;
-        if (!groups[key] || px < parseInt(groups[key].price)) {
-          groups[key] = row;
-        }
+        if (!groups[key] || px < parseInt(groups[key].price)) groups[key] = row;
       }
 
       const results = [];
