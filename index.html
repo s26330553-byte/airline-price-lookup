@@ -607,11 +607,8 @@
 
               ${r.brDayDisc && r.brDayDisc !== 0 ? `
               <div class="flex justify-between items-baseline text-purple-600">
-                <div>
-                  <div>SRS/SDC 天數折扣</div>
-                  <div class="text-xs mt-0.5 text-slate-400">${r.tripDays}天 SRS/SDC 套餐折扣</div>
-                </div>
-                <span class="font-medium text-base">${r.brDayDiscNote}</span>
+                <div>異常天數減價</div>
+                <span class="font-medium text-base">NT$ ${r.brDayDisc.toLocaleString()}</span>
               </div>` : ''}
 
               ${r.dateAdj > 0 ? `
