@@ -434,7 +434,7 @@
           isPromo,
           sourceLabel: row.source_file || row.fare_type,
           tourCode: row.tour_code || null,
-          agentDiscount: parseInt(row.agent_discount) || 0,
+          agentDiscount: parseInt(row.agent_discount) || 0,  // 負數 = 折扣
           total: basePrice + surcharge + dateAdj + brDayDisc,
         });
       }
@@ -597,8 +597,8 @@
                 <span class="text-slate-600">基本票價</span>
                 <span class="font-semibold text-slate-800 text-lg">${fmtPrice(r.basePrice)}</span>
               </div>
-              ${r.agentDiscount > 0 ? `
-              <div class="text-xs text-slate-400 text-right -mt-2">票價已含代理商折扣 NT$ ${r.agentDiscount.toLocaleString()}</div>` : ''}
+              ${r.agentDiscount < 0 ? `
+              <div class="text-xs text-slate-400 text-right -mt-2">票價已含代理商折扣 NT$ ${Math.abs(r.agentDiscount).toLocaleString()}</div>` : ''}
 
               <div class="flex justify-between items-baseline ${surchargeColor}">
                 <div>
