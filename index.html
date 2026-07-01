@@ -356,7 +356,7 @@
       // Step 1：同一票價表家族（source_file 去掉版本號）× 票種 × 航班 → 取最晚生效日（版本升級）
       const byTable = {};
       for (const row of matching) {
-        const tableBase = (row.source_file || '').replace(/[（(]第[一二三四五六七八九十百\d]+版[）)]/g, '').replace(/_已處理$/i, '').trim();
+        const tableBase = (row.source_file || '').replace(/[（(]第[一二三四五六七八九十百\d]+版[）)]/g, '').replace(/-?生效日\S*/g, '').replace(/_已處理$/i, '').trim();
         const key = `${row.fare_type}|${row.dep_flight}|${row.ret_flight}|${row.destination}|${tableBase}`;
         if (!byTable[key]) { byTable[key] = row; continue; }
         const cur = byTable[key].ticket_issue_start || '';
