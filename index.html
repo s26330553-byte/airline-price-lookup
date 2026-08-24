@@ -410,26 +410,6 @@
           }
         }
 
-        // BR SRS/SDC 天數折扣
-        let brDayDisc = 0, brDayDiscNote = '';
-        if (row.airline === 'BR') {
-          const dayRules = {
-            3: [{ dest: 'OKA', amount: -1000 }, { dest: 'KIX', amount: -2000 }],
-            4: [{ dest: 'OKA', amount: 0    }, { dest: '*',   amount: -1500 }],
-            5: [{ dest: 'OKA', amount: -1000 }],
-            6: [{ dest: 'UKB', amount: -2000 }, { dest: '*',  amount: -1500 }],
-            7: [{ dest: '*', amount: -1500 }],
-          }[tripDays];
-          if (dayRules) {
-            for (const dr of dayRules) {
-              if (dr.dest === dest || dr.dest === '*') { brDayDisc = dr.amount; break; }
-            }
-          }
-          if (brDayDisc !== 0) {
-            brDayDiscNote = `NT$ ${brDayDisc.toLocaleString()}（${tripDays}天 SRS/SDC 折扣）`;
-          }
-        }
-
         // 回程日
         const depDate = parseLocalDate(departureDateStr);
         const retDate = new Date(depDate.getFullYear(), depDate.getMonth(), depDate.getDate() + tripDays - 1);
@@ -443,12 +423,11 @@
           departureDateStr, retDateStr, tripDays,
           basePrice, surcharge, surchargeNote, surchargeDetail,
           dateAdj, dateAdjNote,
-          brDayDisc, brDayDiscNote,
           isPromo,
           sourceLabel: row.source_file || row.fare_type,
           tourCode: row.tour_code || null,
           agentDiscount: parseInt(row.agent_discount) || 0,  // 負數 = 折扣
-          total: basePrice + surcharge + dateAdj + brDayDisc,
+          total: basePrice + surcharge + dateAdj,
         });
       }
 
@@ -620,12 +599,6 @@
                 </div>
                 <span class="font-medium text-base">${r.surchargeNote}</span>
               </div>
-
-              ${r.brDayDisc && r.brDayDisc !== 0 ? `
-              <div class="flex justify-between items-baseline text-purple-600">
-                <div>異常天數減價</div>
-                <span class="font-medium text-base">NT$ ${r.brDayDisc.toLocaleString()}</span>
-              </div>` : ''}
 
               ${r.dateAdj > 0 ? `
               <div class="flex justify-between items-baseline text-orange-600">
